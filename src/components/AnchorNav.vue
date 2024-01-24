@@ -58,7 +58,7 @@ export default {
             valueType: 1, //当前楼层改变的类型，1是组件传递、按钮直达改变，2是通过滚动监听自动改变
             children: [],
             offsetTopList:[],
-            active:''
+            active:'',
         }
     },
     computed:{
@@ -76,6 +76,7 @@ export default {
         //获取锚点距离父级元素的顶部距离,注意这里的父级元素
         anchorPosition(anchor) {
             //取消监听
+            this.scrollWrap.removeEventListener('scroll', this.scrollHandle)
             console.log('点击锚点为：',anchor)
             const element = document.getElementById(anchor)
             console.log('滚动元素为',element)
@@ -83,14 +84,17 @@ export default {
             console.log('偏移量为:',element.offsetTop)
             // this.scrollTo(element.offsetTop)
             this.active = ''
+            this.active = anchor
             // this.$nextTick(()=>{
             //     this.active = anchor
             // })
-            this.scrollWrap.removeEventListener('scroll', this.scrollHandle)
             //恢复监听
+            //使用模拟滚动代替真实滚动，避免由于我们在跳转anchor时一直开启滚动监听事件，造成经过的anchor都高亮的问题
             animateScrollTo(element.offsetTop,{speed:100, elementToScroll: this.scrollWrap}).then(()=>{
-                this.scrollWrap.addEventListener('scroll', this.scrollHandle)
-                this.active = anchor
+                // this.scrollWrap.addEventListener('scroll', function(){
+                //     this.scrollHandle(this.scrollWrap,flag=false)
+                // })
+                this.scrollWrap.addEventListener('scroll',this.scrollHandle)
             })
         },
         //父级元素滚动
@@ -117,13 +121,21 @@ export default {
             })
         },
         scrollHandle({target}){
+            //如果已经到达底部，不再进行后面的判断：避免anchor高亮后经过判断又取消的问题
+            //scrollTop + clientHeight == scrollHeight
+            //是否找到了匹配的滚动位置
+            let flag = true
+            const curScrollTop = target.scrollTop //当前滚动高度
+            const clientHeight = target.clientHeight //
+            const scrollHeight = target.scrollHeight //页面总高度
+            if(curScrollTop+clientHeight === scrollHeight){
+                console.log('已经到达底部')
+                flag = false
+            }
+            console.log('当前滚动位置',curScrollTop)
             if (!this.offsetTopList.lenth) {
                 this.setOffsetTopList()
             }
-            const curScrollTop = target.scrollTop
-            console.log('当前滚动位置',curScrollTop)
-            //是否找到了匹配的滚动位置
-            let flag = true
             //获取一个保存页面上所有锚点位置信息的数组
             const len = this.offsetTopList.length
             //获取第一个锚点的位置
@@ -152,11 +164,14 @@ export default {
         console.log('dom2',document.getElementById(this.scrollDom))
         this.setOffsetTopList()
         console.log('偏移量数组3，挂载后', this.offsetTopList)
-        this.scrollWrap.addEventListener('scroll',this.throttleScroll)
+        // this.scrollWrap.addEventListener('scroll', function(){
+        //     this.scrollHandle(flag=true)
+        // })
+        this.scrollWrap.addEventListener('scroll',this.scrollHandle)
         // window.addEventListener('scroll',this.scrollHandle)
     },
     beforeDestroy(){
-        this.scrollWrap.removeEventListener('scroll',this.throttleScroll)
+        this.scrollWrap.removeEventListener('scroll',this.scrollHandle)
     }
 }
 </script>
